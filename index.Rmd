@@ -1,0 +1,149 @@
+---
+title: "Ban D'Arguin seagrass"
+author: "Lee, Chengfa Benjamin"
+date: "`r Sys.Date()`"
+output: bookdown::html_document2
+bibliography: references.bib 
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(magrittr)
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(sf)
+library(leaflet)
+library(ggplot2)
+library(ggiraph)
+library(ggpubr)
+```
+
+This study explores the biomass data of the seagrass meadows at Ban D'Arguin. For more information on the field sampling, please refer to [this GitPage](https://sigoiry.github.io/Arguin---FieldWork-Data-Processing/). 
+
+All analyses were performed in R version 4.5.2 [@Rversion].
+
+# Data
+
+```{r preprocessing}
+#| echo: false
+#| error: false
+#| message: false
+#| warning: false
+
+csv <- read_xlsx('data/Info spectral measure_biomass core_BdA_Biomass 2026.xlsx') %>% 
+    select(-c(...14, ...15)) %>%
+    rename(c(AG_DW = `AG biomass (g DW)`, BG_DW = `BG Biomass (g DW)`, class = comment)) %>%
+    mutate(cover = as.numeric(cover), lat = as.numeric(lat), lon = as.numeric(lon))
+```
+
+```{r samplingDesign}
+#| echo: false
+#| error: false
+#| message: false
+#| warning: false
+
+stations <- csv %>%
+  filter(!is.na(lat)) %>%
+  st_as_sf(coords = c('lon', 'lat'))
+
+# group_bounds <- read_sf('data/shp/Polygons.shp')
+#   group_bounds$colour <- c('darkred','darkgreen')
+
+map_centre <- stations %>%
+  st_union() %>%
+  st_centroid() %>%
+  st_coordinates()
+
+pal.shp <- colorFactor(c('lightgreen','cyan','darkgreen','beige','lightgreen','khaki','brown1','brown1','brown1',
+                         'beige','darkgreen','white','khaki','yellow','beige','grey50','darkgreen'
+                         ), 
+                       domain = c("algae_mud","cyano","cymodocea","dry_sand","green_algae","mangrove","mbp_mud","mpb","mpb_mud",
+                                  "sand","seagrass","shell","spartina","vaucheria","white_sand","worm_reef","zn"
+                                  ))
+
+m.shp <- leaflet(stations) %>%
+  addProviderTiles(providers$CartoDB.PositronNoLabels) %>%
+  setView(map_centre[1], map_centre[2], 6) %>%
+  addCircleMarkers(radius = 2, color = ~pal.shp(class), fillOpacity = 1, label = ~location) %>%
+  addLegend(pal = pal.shp, values = ~class, opacity = 1, title = "Land/Seabed cover")
+
+m.shp
+```
+
+```{r LeafDW}
+#| echo: false
+#| error: false
+#| message: false
+#| warning: false
+#| fig.width: 9
+#| fig.cap: Above- and belowground seagrass biomass across the different Ban D'Arguin locations.
+
+csv %>%
+  pivot_longer(cols = c(AG_DW, BG_DW), names_to = 'component', values_to = 'DW') %>%
+  filter(DW != 0) %>%
+  ggplot(aes(y = DW, x = location, fill = location)) +
+    geom_boxplot() +
+    scale_fill_discrete(guide = 'none') +
+    xlab('Location') + ylab('Dry weight (g)') +
+    facet_grid(. ~ component, labeller = labeller(component = c(AG_DW = 'Aboveground biomass', BG_DW = 'Belowground biomass')))
+```
+
+# Comparison
+
+```{r compareLeafRoot}
+#| echo: false
+#| error: false
+#| message: false
+#| warning: false
+#| fig.cap: Comparison of leaf biomass to root biomass across the different Ban D'Arguin locations.
+
+plt.agb_bgb <- csv %>%
+  filter(AG_DW != 0) %>%
+  ggplot(aes(x = AG_DW, y = BG_DW)) +
+    geom_smooth(method = 'lm') +
+    geom_point_interactive(aes(tooltip = paste0("Station: ", station), data_id = station)) +
+    xlab(bquote('Leaf dry weight ('~g/m^2~')')) + ylab(bquote('Root dry weight ('~g/m^2~')')) +
+    stat_regline_equation(label.x.npc = 'left', label.y.npc = 'top', decreasing = TRUE, aes(label =  paste(..eq.label.., ..adj.rr.label.., sep = "~~~~")), colour = 'blue') +
+    facet_grid(. ~ location)
+
+girafe(ggobj = plt.agb_bgb,
+         options = list(
+           opts_hover(css = "stroke-width:1px"),
+           opts_hover_inv(css = "opacity:0.25"),
+           opts_tooltip(opacity = 0.95, css = "padding:4px; font-size:18px")
+         ),
+         height_svg = 5, width_svg = 12
+  )
+```
+
+```{r compileLeafRoot}
+#| echo: false
+#| error: false
+#| message: false
+#| warning: false
+#| fig.cap: Comparison of leaf biomass to root biomass in Ban D'Arguin.
+
+plt.agb_bgb_compiled <- csv %>%
+  filter(AG_DW != 0) %>%
+  ggplot(aes(x = AG_DW, y = BG_DW)) +
+    geom_smooth(method = 'lm') +
+    geom_point_interactive(aes(tooltip = paste0("Station: ", station), data_id = station)) +
+    xlab(bquote('Leaf dry weight ('~g/m^2~')')) + ylab(bquote('Root dry weight ('~g/m^2~')')) +
+    stat_regline_equation(label.x.npc = 'left', label.y.npc = 'top', decreasing = TRUE, aes(label =  paste(..eq.label.., ..adj.rr.label.., sep = "~~~~")), colour = 'blue') 
+
+girafe(ggobj = plt.agb_bgb_compiled,
+         options = list(
+           opts_hover(css = "stroke-width:1px"),
+           opts_hover_inv(css = "opacity:0.25"),
+           opts_tooltip(opacity = 0.95, css = "padding:4px; font-size:18px")
+         ),
+         height_svg = 5, width_svg = 12
+  )
+```
+
+
+# References

@@ -2,3 +2,6 @@
 .Rhistory
 .RData
 .Ruserdata
+
+# temporary embargo on data files.
+data/
