@@ -17,6 +17,7 @@ library(dplyr)
 library(tidyr)
 library(sf)
 library(leaflet)
+library(viridis)
 library(ggplot2)
 library(ggiraph)
 library(ggpubr)
@@ -34,10 +35,13 @@ All analyses were performed in R version 4.5.2 [@Rversion].
 #| message: false
 #| warning: false
 
+core_area <- pi*(0.15)^2
+
 csv <- read_xlsx('data/Info spectral measure_biomass core_BdA_Biomass 2026.xlsx') %>% 
     select(-c(...14, ...15)) %>%
-    rename(c(AG_DW = `AG biomass (g DW)`, BG_DW = `BG Biomass (g DW)`, class = comment)) %>%
-    mutate(cover = as.numeric(cover), lat = as.numeric(lat), lon = as.numeric(lon))
+    rename(c(class = comment)) %>%
+    mutate(cover = as.numeric(cover), lat = as.numeric(lat), lon = as.numeric(lon), location = factor(location, levels = sort(unique(location))),
+           AG_DW = `AG biomass (g DW)`/core_area, BG_DW = `BG Biomass (g DW)`/core_area, AG_BG.ratio = AG_DW/BG_DW)
 ```
 
 ```{r samplingDesign}
@@ -58,18 +62,15 @@ map_centre <- stations %>%
   st_centroid() %>%
   st_coordinates()
 
-pal.shp <- colorFactor(c('lightgreen','cyan','darkgreen','beige','lightgreen','khaki','brown1','brown1','brown1',
-                         'beige','darkgreen','white','khaki','yellow','beige','grey50','darkgreen'
-                         ), 
-                       domain = c("algae_mud","cyano","cymodocea","dry_sand","green_algae","mangrove","mbp_mud","mpb","mpb_mud",
-                                  "sand","seagrass","shell","spartina","vaucheria","white_sand","worm_reef","zn"
-                                  ))
+viridis.location <- viridis(csv$location %>% unique() %>% length(), option = "turbo")
+pal.shp <- colorFactor(viridis.location, 
+                       domain = c("Arel","Baie d'Aouatif 11","Baie d'Aouatif 3","Ebelg Eiznaya","Niroumi edge","Zira" ))
 
 m.shp <- leaflet(stations) %>%
   addProviderTiles(providers$CartoDB.PositronNoLabels) %>%
   setView(map_centre[1], map_centre[2], 6) %>%
-  addCircleMarkers(radius = 2, color = ~pal.shp(class), fillOpacity = 1, label = ~location) %>%
-  addLegend(pal = pal.shp, values = ~class, opacity = 1, title = "Land/Seabed cover")
+  addCircleMarkers(radius = 2, color = ~pal.shp(location), fillOpacity = 1, label = ~station) %>%
+  addLegend(pal = pal.shp, values = ~location, opacity = 1, title = "Location")
 
 m.shp
 ```
@@ -87,8 +88,8 @@ csv %>%
   filter(DW != 0) %>%
   ggplot(aes(y = DW, x = location, fill = location)) +
     geom_boxplot() +
-    scale_fill_discrete(guide = 'none') +
-    xlab('Location') + ylab('Dry weight (g)') +
+    scale_fill_manual(values = viridis.location, drop = FALSE, guide = 'none') +
+    xlab('Location') + ylab(bquote('Dry weight ('~g/m^2~')')) +
     facet_grid(. ~ component, labeller = labeller(component = c(AG_DW = 'Aboveground biomass', BG_DW = 'Belowground biomass')))
 ```
 
@@ -99,25 +100,14 @@ csv %>%
 #| error: false
 #| message: false
 #| warning: false
-#| fig.cap: Comparison of leaf biomass to root biomass across the different Ban D'Arguin locations.
+#| fig.cap: Ratio of aboveground biomass to belowground biomass across the different Ban D'Arguin locations.
 
-plt.agb_bgb <- csv %>%
-  filter(AG_DW != 0) %>%
-  ggplot(aes(x = AG_DW, y = BG_DW)) +
-    geom_smooth(method = 'lm') +
-    geom_point_interactive(aes(tooltip = paste0("Station: ", station), data_id = station)) +
-    xlab(bquote('Leaf dry weight ('~g/m^2~')')) + ylab(bquote('Root dry weight ('~g/m^2~')')) +
-    stat_regline_equation(label.x.npc = 'left', label.y.npc = 'top', decreasing = TRUE, aes(label =  paste(..eq.label.., ..adj.rr.label.., sep = "~~~~")), colour = 'blue') +
-    facet_grid(. ~ location)
-
-girafe(ggobj = plt.agb_bgb,
-         options = list(
-           opts_hover(css = "stroke-width:1px"),
-           opts_hover_inv(css = "opacity:0.25"),
-           opts_tooltip(opacity = 0.95, css = "padding:4px; font-size:18px")
-         ),
-         height_svg = 5, width_svg = 12
-  )
+csv %>%
+  filter(AG_BG.ratio != 0) %>%
+  ggplot(aes(x = location, y = AG_BG.ratio, fill = location)) +
+    geom_boxplot() +
+    scale_fill_manual(values = viridis.location, drop = FALSE, guide = 'none') +
+    xlab('') + ylab('Ratio of aboveground biomass to belowground biomass') 
 ```
 
 ```{r compileLeafRoot}
@@ -131,9 +121,10 @@ plt.agb_bgb_compiled <- csv %>%
   filter(AG_DW != 0) %>%
   ggplot(aes(x = AG_DW, y = BG_DW)) +
     geom_smooth(method = 'lm') +
-    geom_point_interactive(aes(tooltip = paste0("Station: ", station), data_id = station)) +
+    geom_point_interactive(aes(colour = location, tooltip = paste0("Station: ", station, ", Ratio: ", format(round(AG_BG.ratio, 2), nsmall = 2)), data_id = station)) +
+    scale_colour_manual("Location", values = viridis.location, drop = FALSE) +  
     xlab(bquote('Leaf dry weight ('~g/m^2~')')) + ylab(bquote('Root dry weight ('~g/m^2~')')) +
-    stat_regline_equation(label.x.npc = 'left', label.y.npc = 'top', decreasing = TRUE, aes(label =  paste(..eq.label.., ..adj.rr.label.., sep = "~~~~")), colour = 'blue') 
+    stat_regline_equation(label.x.npc = 'centre', label.y.npc = 'bottom', decreasing = TRUE, aes(label =  paste(..eq.label.., ..adj.rr.label.., sep = "~~~~")), colour = 'blue') 
 
 girafe(ggobj = plt.agb_bgb_compiled,
          options = list(
