@@ -35,7 +35,7 @@ All analyses were performed in R version 4.5.2 [@Rversion].
 #| message: false
 #| warning: false
 
-core_area <- pi*(0.15)^2
+core_area <- pi*(0.15/2)^2
 
 csv <- read_xlsx('data/Info spectral measure_biomass core_BdA_Biomass 2026.xlsx') %>% 
     select(-c(...14, ...15)) %>%
