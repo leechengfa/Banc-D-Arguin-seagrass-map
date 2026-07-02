@@ -1,5 +1,5 @@
 ---
-title: "Ban D'Arguin seagrass"
+title: "Banc D'Arguin seagrass"
 author: "Lee, Chengfa Benjamin"
 date: "`r Sys.Date()`"
 output: bookdown::html_document2
@@ -23,7 +23,7 @@ library(ggiraph)
 library(ggpubr)
 ```
 
-This study explores the biomass data of the seagrass meadows at Ban D'Arguin. For more information on the field sampling, please refer to [this GitPage](https://sigoiry.github.io/Arguin---FieldWork-Data-Processing/). 
+This study explores the biomass data of the seagrass meadows at Banc D'Arguin. For more information on the field sampling, please refer to [this GitPage](https://sigoiry.github.io/Arguin---FieldWork-Data-Processing/). 
 
 All analyses were performed in R version 4.5.2 [@Rversion].
 
