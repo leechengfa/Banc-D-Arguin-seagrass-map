@@ -81,7 +81,7 @@ m.shp
 #| message: false
 #| warning: false
 #| fig.width: 9
-#| fig.cap: Above- and belowground seagrass biomass across the different Ban D'Arguin locations.
+#| fig.cap: Above- and belowground seagrass biomass across the different Banc D'Arguin locations.
 
 csv %>%
   pivot_longer(cols = c(AG_DW, BG_DW), names_to = 'component', values_to = 'DW') %>%
@@ -100,7 +100,7 @@ csv %>%
 #| error: false
 #| message: false
 #| warning: false
-#| fig.cap: Ratio of aboveground biomass to belowground biomass across the different Ban D'Arguin locations.
+#| fig.cap: Ratio of aboveground biomass to belowground biomass across the different Banc D'Arguin locations.
 
 csv %>%
   filter(AG_BG.ratio != 0) %>%
@@ -115,7 +115,7 @@ csv %>%
 #| error: false
 #| message: false
 #| warning: false
-#| fig.cap: Comparison of leaf biomass to root biomass in Ban D'Arguin.
+#| fig.cap: Comparison of leaf biomass to root biomass in Banc D'Arguin.
 
 plt.agb_bgb_compiled <- csv %>%
   filter(AG_DW != 0) %>%
